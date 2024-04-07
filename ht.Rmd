@@ -1,0 +1,92 @@
+---
+title: "Hypothesis testing"
+output: 
+  pdf_document:
+    latex_engine: xelatex # or pdflatex if preferred
+---
+
+## Reading data and loading libraries
+```{r warning=FALSE, message=FALSE}
+# Load necessary libraries (if required)
+# library(readr)
+rm(list=ls())
+library(ggplot2)
+library(tidyverse)
+# Read the CSV file 
+
+data <- read.csv("anes_timeseries_2020_csv_20220210/anes_timeseries_2020_csv_20220210.csv")
+```
+
+
+## Data Wrangling 
+
+For deciding if an observation belongs to a democrat or a republican, we use
+V201226 PRE: SPLIT-TICKET VOTING, because...
+lean = 1 $\rightarrow$ Republican
+lean = 2 $\rightarrow$ Democrat
+
+For the difficulty the decision variable is 
+V202119 POST: HOW DIFFICULT WAS IT FOR R TO VOTE, since ...
+difficulty = 1 $\rightarrow$ No difficult
+difficulty $> 1 \rightarrow$ Difficult
+
+
+
+```{r warning=FALSE, message=FALSE }
+selected_data <- data %>%
+  select(difficulty='V202119', lean='V201226')
+filtered <- filter(selected_data, lean %in% c(1, 2), 
+                   difficulty %in% c(1, 2, 3, 4, 5))
+input_data <-filtered %>%
+  mutate(difficulty = ifelse(difficulty == 1, 0, 1))
+```
+
+## PLOTS
+
+```{r warning=FALSE, message=FALSE }
+ggplot(input_data, aes(x = factor(difficulty), fill = factor(difficulty))) +
+  geom_bar() +
+  facet_wrap(~ factor(lean, labels = c("1 - Republican", "2 - Democrat")), ncol = 1) +
+  labs(title = "Bar Plots by Party ",
+       x = "Difficulty",
+       y = "Count") +
+  scale_x_discrete(labels = c("1" = "Difficult", "0" = "No difficult")) +
+  scale_fill_discrete(name = "Difficulty",
+                      labels = c("0" = "No difficult", "1" = "Difficult")) +
+   theme_minimal()
+```
+ ## Hypothesis testing
+
+$H_0:$ There is no difference between the Republicans and Democrats in terms
+       of the difficulty when voting
+       
+```{r warning=FALSE, message=FALSE }
+# Create a contingency table
+contingency_table <- table(input_data$lean, input_data$difficulty)
+
+# Perform a chi-squared test
+chi_squared_test <- chisq.test(contingency_table)
+
+# Print the results
+print(chi_squared_test)
+```
+## Conclusions
+
+Since p-value<0.05 there is enough statistical evidence to reject the null 
+hypothesis, and we can conclude that there is difference on how Republicans and 
+Democrats conceive difficulty when voting.
+ 
+```{r warning=FALSE, message=FALSE }
+total_counts <- rowSums(contingency_table)
+percentage_difficulty <- (contingency_table[,2] / total_counts) * 100
+
+# Add percentages as a new column to the contingency table
+contingency_table_with_percentages <- cbind(contingency_table, Percentage_Difficulty = percentage_difficulty)
+
+# Print the contingency table with percentages
+contingency_table_with_percentages
+
+```
+The table above shows that in proportion the Republicans find more difficult to
+vote, the sum of this result and the latter let us conclude that the Republicans
+find more difficulty when voting.
